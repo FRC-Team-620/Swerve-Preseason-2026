@@ -31,7 +31,7 @@ public class ModuleIORev implements ModuleIO{
     //Hardware objects
     private final SparkBase driveSpark;
     private final SparkBase turnSpark;
-    private final RelativeEncoder driveEcoder;
+    private final RelativeEncoder driveEncoder;
     private final AbsoluteEncoder turnEncoder;
 
     // Closed loop controllers
@@ -57,7 +57,41 @@ public class ModuleIORev implements ModuleIO{
           case 3 -> DriveConstants.backRightZeroRotation;
           default -> new Rotation2d();
         };
-    }
+    driveSpark =
+        new SparkMax(
+            switch (module) {
+              case 0 -> revConstants.frontLeftDriveCanId;
+              case 1 -> revConstants.frontRightDriveCanId;
+              case 2 -> revConstants.backLeftDriveCanId;
+              case 3 -> revConstants.backRightDriveCanId;
+              default -> 0;
+            },
+            MotorType.kBrushless);
+    turnSpark =
+        new SparkMax(
+            switch (module) {
+              case 0 -> revConstants.frontLeftTurnCanId;
+              case 1 -> revConstants.frontRightTurnCanId;
+              case 2 -> revConstants.backLeftTurnCanId;
+              case 3 -> revConstants.backRightTurnCanId;
+              default -> 0;
+            },
+            MotorType.kBrushless);
+    driveEncoder = driveSpark.getEncoder();
+    turnEncoder = turnSpark.getAbsoluteEncoder();
+    driveController = driveSpark.getClosedLoopController();
+    turnController = turnSpark.getClosedLoopController();
 
 
+
+
+
+
+    // Create odometry queues
+    timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();
+    drivePositionQueue =
+        SparkOdometryThread.getInstance().registerSignal(driveSpark, driveEncoder::getPosition);
+    turnPositionQueue =
+        SparkOdometryThread.getInstance().registerSignal(turnSpark, turnEncoder::getPosition);
+  }
 }
