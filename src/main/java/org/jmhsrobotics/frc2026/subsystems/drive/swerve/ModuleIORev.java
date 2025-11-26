@@ -82,9 +82,33 @@ public class ModuleIORev implements ModuleIO{
     driveController = driveSpark.getClosedLoopController();
     turnController = turnSpark.getClosedLoopController();
 
-
-
-
+    //Configure drive motor
+    var driveConfig = new SparkFlexConfig();
+    driveConfig
+        .idleMode(IdleMode.kBrake)
+        .smartCurrentLimit(revConstants.driveMotorCurrentLimit)
+        .voltageCompensation(12.0);
+    driveConfig
+        .closedLoop
+        .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
+        .pidf(
+            revConstants.driveKp, 0.0,
+            revConstants.driveKd, 0.0);
+    driveConfig
+        .signals
+        .primaryEncoderPositionAlwaysOn(true)
+        .primaryEncoderPositionPeriodMs((int) (1000.0 / DriveConstants.odometryFrequency))
+        .primaryEncoderVelocityAlwaysOn(true)
+        .primaryEncoderVelocityPeriodMs(20)
+        .busVoltagePeriodMs(20)
+        .outputCurrentPeriodMs(20);
+    SparkUtil.tryUntilOk(
+        driveSpark,
+        5,
+        () ->
+            driveSpark.configure(
+              driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
+    SparkUtil.tryUntil
 
 
     // Create odometry queues
