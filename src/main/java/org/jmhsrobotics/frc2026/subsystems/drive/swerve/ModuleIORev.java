@@ -18,6 +18,8 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.motorcontrol.Spark;
+
 import java.util.Queue;
 import java.util.function.DoubleSupplier;
 import org.jmhsrobotics.frc2026.subsystems.drive.DriveConstants;
@@ -108,8 +110,39 @@ public class ModuleIORev implements ModuleIO{
         () ->
             driveSpark.configure(
               driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
-    SparkUtil.tryUntil
+    SparkUtil.tryUntilOk(driveSpark, 5, () -> driveEncoder.setPosition(0.0));
 
+    var turnConfig = new SparkMaxConfig();
+    turnConfig
+        .inverted(revConstants.turnInverted)
+        .idleMode(IdleMode.kBrake)
+        .smartCurrentLimit(revConstants.turnMotorCurrentLimit)
+        .voltageCompensation(12.0);
+    turnConfig
+        .absoluteEncoder
+        .inverted(revConstants.turnEncoderInverted)
+        .positionConversionFactor(revConstants.turnEncoderPositionFactor)
+        .velocityConversionFactor(revConstants.turnEncoderVelocityFactor)
+        .averageDepth(2);
+    turnConfig
+        .closedLoop
+        .feedbackSensor(FeedbackSensor.kAbsoluteEncoder)
+        .positionWrappingEnabled(true)
+        .positionWrappingInputRange(revConstants.turnPIDMinInput, revConstants.turnPIDMaxInput)
+        .pidf(revConstants.turnKp, 0.0, revConstants.turnKd, 0.0);
+    turnConfig
+        .signals
+        .absoluteEncoderPositionAlwaysOn(true)
+        .absoluteEncoderPositionPeriodMs((int) (1000.0 / DriveConstants.odometryFrequency))
+        .absoluteEncoderVelocityAlwaysOn(true)
+        .absoluteEncoderVelocityPeriodMs(20)
+        .busVoltagePeriodMs(20)
+        .outputCurrentPeriodMs(20);
+    SparkUtil.tryUntilOk(turnSpark,
+        5, 
+        () -> 
+            turnSpark.configure(
+                turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters));
 
     // Create odometry queues
     timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue();
@@ -117,5 +150,19 @@ public class ModuleIORev implements ModuleIO{
         SparkOdometryThread.getInstance().registerSignal(driveSpark, driveEncoder::getPosition);
     turnPositionQueue =
         SparkOdometryThread.getInstance().registerSignal(turnSpark, turnEncoder::getPosition);
+  }
+
+  @Override
+  public void updateInputs(ModuleIOInputs inputs) {
+    // Update drive inputs
+    SparkUtil.sparkStickyFault = false;
+    SparkUtil.ifOk(
+        driveSpark, driveEncoder::getPosition, (value) -> inputs.drivePositionRad = value);
+    SparkUtil.ifOk(
+        driveSpark, driveEncoder::getVelocity, (value) -> inputs.driveVelocityRadPerSec = value);
+    SparkUtil.ifOk(
+        driveSpark,
+        new DoubleSupplier[] {driveSpark::getAppliedOutput, driveSpark::getBusVoltage},
+        (values) -> inputs.driveAppliedVolts = values[0] * values[1]);
   }
 }

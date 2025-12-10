@@ -57,6 +57,8 @@ public class DriveConstants{
         // Drive encoder configuration
         public static final double driveEncoderPositionFactor =
             2* Math.PI / driveMotorReduction; // Rotor Rotations -> Wheel Radians
+            public static final double driveEncoderVelocityFactor =
+            (2 * Math.PI) / 60.0 / driveMotorReduction; // Rotor RPM -> Wheel Rad/Sec
 
         // Drive PID configuration
         public static final double driveKp = 0.2;
@@ -67,5 +69,40 @@ public class DriveConstants{
         public static final double driveSimD = 0.0;
         public static final double driveSimKs = 0.0;
         public static final double driveSimKv = 0.0789;
+
+        // Turn motor configuration
+    public static final boolean turnInverted = false;
+    public static final int turnMotorCurrentLimit = 20;
+    public static final double turnMotorReduction = 9424.0 / 203.0;
+
+    // Turn encoder configuration
+    public static final boolean turnEncoderInverted = true;
+    public static final double turnEncoderPositionFactor = 2 * Math.PI; // Rotations -> Radians
+    public static final double turnEncoderVelocityFactor = (2 * Math.PI) / 60.0; // RPM -> Rad/Sec
+
+    // Turn PID configuration
+    public static final double turnKp = 0.1;
+    public static final double turnKd = 0.0;
+    public static final double turnSimP = 4;
+    public static final double turnSimD = 0.0;
+    public static final double turnPIDMinInput = 0; // Radians
+    public static final double turnPIDMaxInput = 2 * Math.PI; // Radians
+
+    // PathPlanner configuration
+    public static final double robotMassKg = 74.088;
+    public static final double robotMOI = 6.883;
+    public static final double wheelCOF = 1.2;
+    public static final RobotConfig ppConfig =
+        new RobotConfig(
+            robotMassKg,
+            robotMOI,
+            new ModuleConfig(
+                wheelRadiusMeters,
+                maxSpeedMetersPerSec,
+                wheelCOF,
+                driveGearbox.withReduction(driveMotorReduction),
+                driveMotorCurrentLimit,
+                1),
+            moduleTranslations);
     }
 }
