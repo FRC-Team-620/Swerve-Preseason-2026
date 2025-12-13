@@ -164,5 +164,27 @@ public class ModuleIORev implements ModuleIO{
         driveSpark,
         new DoubleSupplier[] {driveSpark::getAppliedOutput, driveSpark::getBusVoltage},
         (values) -> inputs.driveAppliedVolts = values[0] * values[1]);
+
+    // Update turn inputs
+    SparkUtil.sparkStickyFault = false;
+    SparkUtil.ifOk(
+        turnSpark,
+        turnEncoder::getPosition,
+        (value) -> inputs.turnPosition = new Rotation2d(value).minus(zeroRotation));
+    SparkUtil.ifOk(
+        turnSpark, turnEncoder::getVelocity, (value) -> inputs.turnVelocityRadPerSec = value);
+    SparkUtil.ifOk(
+        turnSpark,
+        new DoubleSupplier[] {turnSpark::getAppliedOutput, turnSpark::getBusVoltage},
+        (values) -> inputs.turnAppliedVolts = values[0] * values[1]);
+    SparkUtil.ifOk(
+        turnSpark, turnSpark::getOutputCurrent, (value) -> inputs.turnCurrentAmps = value);
+    inputs.turnConnected = turnConnectedDebounce.calculate(!SparkUtil.sparkStickyFault);
+
+    // Update odometry inputs
+    inputs.odometryTimestamps =
+        timestampQueue.stream().mapToDouble((Double value) -> value).toArray();
+    inputs.odometryDrivePositionsRad =
+        drivePositionQueue.stream().mapToDouble((Double value) -> value).toArray();
   }
 }

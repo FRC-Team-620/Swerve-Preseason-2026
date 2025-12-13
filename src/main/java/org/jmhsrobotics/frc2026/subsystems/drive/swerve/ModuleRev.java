@@ -12,7 +12,6 @@ import org.littletonrobotics.junction.Logger;
 public class ModuleRev {
     private final ModuleIO io;
     private final ModuleIOInputsAutoLogged inputs = new ModuleIOInputsAutoLogged();
-
     private final int index;
 
     private final Alert driveDisconnectedAlert;
