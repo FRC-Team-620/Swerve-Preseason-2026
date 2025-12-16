@@ -164,6 +164,9 @@ public class ModuleIORev implements ModuleIO{
         driveSpark,
         new DoubleSupplier[] {driveSpark::getAppliedOutput, driveSpark::getBusVoltage},
         (values) -> inputs.driveAppliedVolts = values[0] * values[1]);
+    SparkUtil.ifOk(
+        driveSpark, driveSpark::getOutputCurrent, (value) -> inputs.driveCurrentAmps = value);
+    inputs.driveConnected = driveConnectedDebounce.calculate(!SparkUtil.sparkStickyFault);
 
     // Update turn inputs
     SparkUtil.sparkStickyFault = false;
@@ -186,5 +189,40 @@ public class ModuleIORev implements ModuleIO{
         timestampQueue.stream().mapToDouble((Double value) -> value).toArray();
     inputs.odometryDrivePositionsRad =
         drivePositionQueue.stream().mapToDouble((Double value) -> value).toArray();
+    inputs.odometryTurnPositions =
+        turnPositionQueue.stream()
+            .map((Double value) -> new Rotation2d(value).minus(zeroRotation))
+            .toArray(Rotation2d[]::new);
+    timestampQueue.clear();
+    drivePositionQueue.clear();
+    turnPositionQueue.clear();
+  }
+
+  @Override
+  public void setTurnPosition(Rotation2d rotation) {
+    double setpoint =
+        MathUtil.inputModulus(
+            rotation.plus(zeroRotation).getRadians(),
+            revConstants.turnPIDMinInput,
+            revConstants.turnPIDMaxInput);
+    turnController.setReference(setpoint, ControlType.kPosition);
+  }
+
+  @Override
+  public void setBrakeMode(boolean enable) {
+    var brakeConfig = new SparkMaxConfig();
+    brakeConfig.idleMode(enable ? IdleMode.kBrake : IdleMode.kCoast);
+    SparkUtil.tryUntilOk(
+        driveSpark,
+        5,
+        () ->
+            driveSpark.configure(
+                brakeConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters));
+    SparkUtil.tryUntilOk(
+        turnSpark,
+        5,
+        () ->
+            turnSpark.configure(
+                brakeConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters));
   }
 }
